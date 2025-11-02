@@ -1,4 +1,5 @@
-use crate::hs::applicative::Applicative;
+use crate::prelude::applicative::Applicative;
+use crate::prelude::maybe::Maybe;
 
 pub trait Alternative<'a>: Applicative<'a> {
     fn empty() -> Self
@@ -14,7 +15,7 @@ pub trait Alternative<'a>: Applicative<'a> {
         Self: Sized,
         F: FnOnce() -> Self;
 
-    fn optional(&self) -> Self::Wrapped<Option<Self::Inner>>
+    fn optional(&self) -> Self::Wrapped<Maybe<Self::Inner>>
     where
         Self: Sized,
         Self::Inner: Clone + 'static;

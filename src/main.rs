@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
-mod hs;
-use crate::hs::{Alternative, Applicative, Functor, Just, Nothing, catMaybes};
+mod prelude;
+use crate::prelude::{Alternative, Applicative, Functor, Just, Maybe, Nothing, catMaybes};
 
 mod parser;
 use crate::parser::*;
@@ -32,7 +32,7 @@ where
     where
         F: Fn(char) -> bool,
     {
-        if let Some(c) = s.chars().next() {
+        if let Just(c) = s.chars().next() {
             let rest = &s[c.len_utf8()..];
             if f(c) {
                 return vec![(c, rest)];
@@ -75,34 +75,34 @@ where
 fn parse_fully<'a, A: Clone>(p: &Parser<'a, A>, s: &'a str) -> Vec<A> {
     parse(p, s)
         .into_iter()
-        .filter_map(|(x, rest)| if rest.is_empty() { Some(x) } else { None })
+        .filter_map(|(x, rest)| if rest.is_empty() { Just(x) } else { Nothing })
         .collect()
 }
 
-fn cmd<'a>() -> Parser<'a, Option<Command>> {
+fn cmd<'a>() -> Parser<'a, Maybe<Command>> {
     let oneOf = |cs: String| satisfy(move |c| cs.contains(c));
     let noneOf = |cs: String| satisfy(move |c| !cs.contains(c));
 
     let inner_b: Parser<'a, Command> = lazy(cmds).fmap(Command::B);
 
-    let f: Parser<'a, Option<Command>> = <Parser<'a, Option<Command>>>::then_keep_left(
+    let f: Parser<'a, Maybe<Command>> = <Parser<'a, Maybe<Command>>>::then_keep_left(
         &(Just(Command::F).into_pure()),
         &oneOf("MN".to_string()),
     );
 
-    let l: Parser<'a, Option<Command>> =
-        <Parser<'a, Option<Command>>>::then_keep_left(&(Just(Command::L).into_pure()), &char_('+'));
+    let l: Parser<'a, Maybe<Command>> =
+        <Parser<'a, Maybe<Command>>>::then_keep_left(&(Just(Command::L).into_pure()), &char_('+'));
 
-    let r: Parser<'a, Option<Command>> =
-        <Parser<'a, Option<Command>>>::then_keep_left(&(Just(Command::R).into_pure()), &char_('-'));
+    let r: Parser<'a, Maybe<Command>> =
+        <Parser<'a, Maybe<Command>>>::then_keep_left(&(Just(Command::R).into_pure()), &char_('-'));
 
     let b_head: Parser<'a, Command> = <Parser<'a, char>>::then_keep_left(
         &<Parser<'a, char>>::then_keep_right(&char_('['), &inner_b),
         &char_(']'),
     );
 
-    let b: Parser<'a, Option<Command>> = b_head.fmap(Some);
-    let n: Parser<Option<Command>> = noneOf("MN+-[]".to_string()).fmap(|_| Nothing::<Command>);
+    let b: Parser<'a, Maybe<Command>> = b_head.fmap(Just);
+    let n: Parser<Maybe<Command>> = noneOf("MN+-[]".to_string()).fmap(|_| Nothing::<Command>);
 
     f.alt(&l).alt(&r).alt(&b).alt(&n)
 }
@@ -122,13 +122,12 @@ fn main() {
     println!("{item_tests:?}");
 
     let pair_of_digits = parse(
-        &<Parser<'_, char> as Applicative<'_>>::liftA2(&digit, &digit, |x, y| (x, y)),
+        &<Parser<'_, char>>::liftA2(&digit, &digit, |x, y| (x, y)),
         "423",
     );
     println!("{pair_of_digits:?}");
 
-    let string_bang =
-        <Parser<'_, String> as Applicative<'_>>::then_keep_left(&string_("hello"), &char_('!'));
+    let string_bang = <Parser<'_, String>>::then_keep_left(&string_("hello"), &char_('!'));
     let string_tests = vec![
         parse(&string_("hello"), "hello world"),
         parse(&string_bang, "hello!"),
@@ -155,7 +154,6 @@ fn main() {
     let first_result_commands = &(command_parse.first().unwrap()).0;
     println!("{first_result_commands:?}");
 
-    let vec_liftA2_sum =
-        <Vec<i32> as Applicative<'_>>::liftA2(&vec![1, 3, 4], &vec![2, 5, 6], |x, y| x + y);
+    let vec_liftA2_sum = <Vec<i32>>::liftA2(&vec![1, 3, 4], &vec![2, 5, 6], |x, y| x + y);
     println!("{vec_liftA2_sum:?}");
 }

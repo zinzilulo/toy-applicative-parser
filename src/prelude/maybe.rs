@@ -1,18 +1,18 @@
-use crate::hs::{Applicative, Functor, Monad};
+use crate::prelude::{Applicative, Functor, Monad};
 
 pub type Maybe<T> = Option<T>;
 pub use std::option::Option::{None as Nothing, Some as Just};
 
 pub fn catMaybes<T, I>(iter: I) -> Vec<T>
 where
-    I: IntoIterator<Item = Option<T>>,
+    I: IntoIterator<Item = Maybe<T>>,
 {
     iter.into_iter().flatten().collect()
 }
 
-impl<T> Functor for Option<T> {
+impl<T> Functor for Maybe<T> {
     type Inner = T;
-    type Wrapped<B> = Option<B>;
+    type Wrapped<B> = Maybe<B>;
 
     fn fmap<B, F>(self, f: F) -> Self::Wrapped<B>
     where
@@ -22,12 +22,12 @@ impl<T> Functor for Option<T> {
     }
 }
 
-impl<'a, T> Applicative<'a> for Option<T> {
+impl<'a, T> Applicative<'a> for Maybe<T> {
     fn pure<A>(a: A) -> Self::Wrapped<A>
     where
         A: Clone + 'a,
     {
-        Some(a)
+        Just(a)
     }
 
     fn ap<X, B, FFn>(fa: &Self::Wrapped<X>, fab: Self::Wrapped<FFn>) -> Self::Wrapped<B>
@@ -36,8 +36,8 @@ impl<'a, T> Applicative<'a> for Option<T> {
         FFn: Fn(X) -> B + 'a,
     {
         match (fa, fab) {
-            (Some(x), Some(f)) => Some(f(x.clone())),
-            _ => None,
+            (Just(x), Just(f)) => Just(f(x.clone())),
+            _ => Nothing,
         }
     }
 
@@ -48,8 +48,8 @@ impl<'a, T> Applicative<'a> for Option<T> {
         F2: Fn(X, Y) -> C + 'a,
     {
         match (fa, fb) {
-            (Some(x), Some(y)) => Some(f(x.clone(), y.clone())),
-            _ => None,
+            (Just(x), Just(y)) => Just(f(x.clone(), y.clone())),
+            _ => Nothing,
         }
     }
 
@@ -58,8 +58,8 @@ impl<'a, T> Applicative<'a> for Option<T> {
         Y: Clone + 'a,
     {
         match (fa, fb) {
-            (Some(_), Some(y)) => Some(y.clone()),
-            _ => None,
+            (Just(_), Just(y)) => Just(y.clone()),
+            _ => Nothing,
         }
     }
 
@@ -68,13 +68,13 @@ impl<'a, T> Applicative<'a> for Option<T> {
         X: Clone + 'a,
     {
         match (fa, fb) {
-            (Some(x), Some(_)) => Some(x.clone()),
-            _ => None,
+            (Just(x), Just(_)) => Just(x.clone()),
+            _ => Nothing,
         }
     }
 }
 
-impl<'a, T> Monad<'a> for Option<T> {
+impl<'a, T> Monad<'a> for Maybe<T> {
     fn bind<B, K>(self, k: K) -> Self::Wrapped<B>
     where
         Self: Sized,

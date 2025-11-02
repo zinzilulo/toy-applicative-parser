@@ -1,4 +1,4 @@
-use crate::hs::{Applicative, Functor, Monad};
+use crate::prelude::{Applicative, Functor, Monad};
 
 impl<T> Functor for Vec<T> {
     type Inner = T;

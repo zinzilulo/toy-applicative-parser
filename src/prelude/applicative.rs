@@ -1,4 +1,4 @@
-use crate::hs::functor::Functor;
+use crate::prelude::functor::Functor;
 
 pub trait Applicative<'a>: Functor {
     fn pure<A>(a: A) -> Self::Wrapped<A>

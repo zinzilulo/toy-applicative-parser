@@ -1,4 +1,4 @@
-use crate::hs::{Alternative, Applicative, Functor};
+use crate::prelude::{Alternative, Applicative, Functor, Maybe};
 use std::sync::Arc;
 
 pub struct Parser<'a, A>(pub Arc<dyn Fn(&'a str) -> Vec<(A, &'a str)> + 'a>);
@@ -145,7 +145,7 @@ impl<'a, A: 'a + Clone> Alternative<'a> for Parser<'a, A> {
         unimplemented!()
     }
 
-    fn optional(&self) -> Self::Wrapped<Option<A>> {
+    fn optional(&self) -> Self::Wrapped<Maybe<A>> {
         unimplemented!()
     }
 

@@ -1,4 +1,4 @@
-use crate::hs::applicative::Applicative;
+use crate::prelude::applicative::Applicative;
 
 pub trait Monad<'a>: Applicative<'a> {
     fn bind<B, K>(self, k: K) -> Self::Wrapped<B>
