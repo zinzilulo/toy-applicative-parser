@@ -1,26 +1,29 @@
 use crate::prelude::{Applicative, Functor, Monad};
 
-impl<T> Functor for Vec<T> {
-    type Inner = T;
-    type Wrapped<B> = Vec<B>;
-
-    fn fmap<B, F>(self, f: F) -> Self::Wrapped<B>
+impl<'a, T> Functor<'a> for Vec<T> {
+    type Wrapped<U>
+        = Vec<U>
     where
-        F: Fn(Self::Inner) -> B + 'static,
+        U: 'a;
+
+    fn fmap<A, B, F>(fa: &Vec<A>, f: F) -> Vec<B>
+    where
+        A: Clone,
+        F: Fn(A) -> B + 'a,
     {
-        self.into_iter().map(f).collect()
+        fa.iter().cloned().map(f).collect()
     }
 }
 
 impl<'a, T> Applicative<'a> for Vec<T> {
-    fn pure<A>(a: A) -> Self::Wrapped<A>
+    fn pure<A>(a: &A) -> Vec<A>
     where
         A: Clone + 'a,
     {
-        vec![a]
+        vec![a.clone()]
     }
 
-    fn ap<X, B, FFn>(fa: &Self::Wrapped<X>, fab: Self::Wrapped<FFn>) -> Self::Wrapped<B>
+    fn ap<X, B, FFn>(fa: &Vec<X>, fab: Vec<FFn>) -> Vec<B>
     where
         X: Clone + 'a,
         FFn: Fn(X) -> B + 'a,
@@ -33,126 +36,61 @@ impl<'a, T> Applicative<'a> for Vec<T> {
         }
         out
     }
-
-    fn liftA2<X, Y, C, F2>(fa: &Self::Wrapped<X>, fb: &Self::Wrapped<Y>, f: F2) -> Self::Wrapped<C>
-    where
-        X: Clone + 'a,
-        Y: Clone + 'a,
-        F2: Fn(X, Y) -> C + 'a,
-    {
-        let mut out = Vec::new();
-        for x in fa.iter() {
-            for y in fb.iter() {
-                out.push(f(x.clone(), y.clone()));
-            }
-        }
-        out
-    }
-
-    fn then_keep_right<X, Y>(fa: &Self::Wrapped<X>, fb: &Self::Wrapped<Y>) -> Self::Wrapped<Y>
-    where
-        Y: Clone + 'a,
-    {
-        let mut out = Vec::new();
-        for _ in fa.iter() {
-            for y in fb.iter().cloned() {
-                out.push(y);
-            }
-        }
-        out
-    }
-
-    fn then_keep_left<X, Y>(fa: &Self::Wrapped<X>, fb: &Self::Wrapped<Y>) -> Self::Wrapped<X>
-    where
-        X: Clone + 'a,
-    {
-        let mut out = Vec::new();
-        for x in fa.iter() {
-            for _ in fb.iter() {
-                out.push(x.clone());
-            }
-        }
-        out
-    }
 }
 
-impl<'a, T> Monad<'a> for Vec<T>
-where
-    T: Clone + 'static,
-{
-    fn bind<B, K>(self, k: K) -> Self::Wrapped<B>
+impl<'a, T> Monad<'a> for Vec<T> {
+    fn bind<A, B, K>(ma: &Vec<A>, k: K) -> Vec<B>
     where
-        K: Fn(Self::Inner) -> Self::Wrapped<B> + 'static,
+        A: Clone + 'a,
+        K: Fn(A) -> Vec<B> + 'a,
     {
         let mut out = Vec::new();
-        for a in self {
+        for a in ma.iter().cloned() {
             out.extend(k(a));
         }
         out
     }
 }
 
-impl<T, const N: usize> Functor for [T; N] {
-    type Inner = T;
-    type Wrapped<B> = [B; N];
-
-    fn fmap<B, F>(self, f: F) -> Self::Wrapped<B>
+impl<'a, T, const N: usize> Functor<'a> for [T; N] {
+    type Wrapped<U>
+        = [U; N]
     where
-        F: Fn(Self::Inner) -> B + 'static,
+        U: 'a;
+
+    fn fmap<A, B, F>(fa: &[A; N], f: F) -> [B; N]
+    where
+        A: Clone,
+        F: Fn(A) -> B + 'a,
     {
-        self.map(f)
+        std::array::from_fn(|i| f(fa[i].clone()))
     }
 }
 
 impl<'a, T, const N: usize> Applicative<'a> for [T; N] {
-    fn pure<A>(a: A) -> Self::Wrapped<A>
+    fn pure<A>(a: &A) -> [A; N]
     where
         A: Clone + 'a,
     {
         std::array::from_fn(|_| a.clone())
     }
 
-    fn ap<X, B, FFn>(fa: &Self::Wrapped<X>, fab: Self::Wrapped<FFn>) -> Self::Wrapped<B>
+    fn ap<X, B, FFn>(fa: &[X; N], fab: [FFn; N]) -> [B; N]
     where
         X: Clone + 'a,
         FFn: Fn(X) -> B + 'a,
     {
-        let fa_ref = &fa;
-        let fab_ref = &fab;
-        std::array::from_fn(|i| (fab_ref[i])(fa_ref[i].clone()))
-    }
-
-    fn liftA2<X, Y, C, F2>(fa: &Self::Wrapped<X>, fb: &Self::Wrapped<Y>, f: F2) -> Self::Wrapped<C>
-    where
-        X: Clone + 'a,
-        Y: Clone + 'a,
-        F2: Fn(X, Y) -> C + 'a,
-    {
-        std::array::from_fn(|i| f(fa[i].clone(), fb[i].clone()))
-    }
-
-    fn then_keep_right<X, Y>(fa: &Self::Wrapped<X>, fb: &Self::Wrapped<Y>) -> Self::Wrapped<Y>
-    where
-        Y: Clone + 'a,
-    {
-        let _ = fa;
-        fb.clone()
-    }
-
-    fn then_keep_left<X, Y>(fa: &Self::Wrapped<X>, _fb: &Self::Wrapped<Y>) -> Self::Wrapped<X>
-    where
-        X: Clone + 'a,
-    {
-        fa.clone()
+        std::array::from_fn(|i| fab[i](fa[i].clone()))
     }
 }
 
 impl<'a, T> Monad<'a> for [T; 1] {
-    fn bind<B, K>(self, k: K) -> Self::Wrapped<B>
+    fn bind<A, B, K>(ma: &[A; 1], k: K) -> [B; 1]
     where
-        K: Fn(Self::Inner) -> Self::Wrapped<B> + 'static,
+        A: Clone + 'a,
+        K: Fn(A) -> [B; 1] + 'a,
     {
-        let [a] = self;
-        k(a)
+        let a0 = ma[0].clone();
+        k(a0)
     }
 }
