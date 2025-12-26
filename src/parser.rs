@@ -14,10 +14,10 @@ pub fn parse<'a, A>(p: &Parser<'a, A>, input: &'a str) -> Vec<(A, &'a str)> {
 }
 
 impl<'a, T: 'a> Functor<'a> for Parser<'a, T> {
-    type Wrapped<B>
-        = Parser<'a, B>
+    type Wrapped<X>
+        = Parser<'a, X>
     where
-        B: 'a;
+        X: 'a;
 
     fn fmap<A, B, F>(fa: &Self::Wrapped<A>, f: F) -> Self::Wrapped<B>
     where
