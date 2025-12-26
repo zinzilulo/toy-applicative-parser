@@ -254,7 +254,7 @@ where {
         println!("{digit_tests:?}");
 
         let non_atomic: Parser<'_, String, Maybe<String>> =
-            alt::<Parser<'_, String, Option<String>>, _>(&string_("hi"), &string_("hello"));
+            alt::<Parser<'_, String, Maybe<String>>, _>(&string_("hi"), &string_("hello"));
         let non_atomic_tests = vec![
             runParser(&non_atomic, "hihello"),
             runParser(&non_atomic, "hellohi"),
@@ -262,7 +262,7 @@ where {
         println!("{non_atomic_tests:?}");
 
         let full: Parser<'_, String, Maybe<String>> =
-            alt::<Parser<'_, String, Option<String>>, _>(&atomic(string_("hi")), &string_("hello"));
+            alt::<Parser<'_, String, Maybe<String>>, _>(&atomic(string_("hi")), &string_("hello"));
         let full_tests: Vec<Maybe<String>> =
             vec![runParser(&full, "hihello"), runParser(&full, "hellohi")];
         println!("{full_tests:?}");
@@ -277,13 +277,10 @@ where {
         fn char_item<'a>(c: char) -> Parser<'a, char, Maybe<char>> {
             satisfy(move |chr| c == chr)
         }
-
         let char_a: Parser<'_, char, Maybe<char>> = char_item('a');
         let char_b: Parser<'_, char, Maybe<char>> = char_item('b');
-
         let char_alt: Parser<'_, char, Maybe<char>> =
             alt::<Parser<'_, char, Maybe<char>>, _>(&char_a, &char_b);
-
         let char_alt_tests: Vec<Maybe<char>> = vec![
             runParser(&char_alt, "b"),
             runParser(&char_alt, "a"),
@@ -293,7 +290,6 @@ where {
 
         let prefix_no_atomic: Parser<'_, String, Maybe<String>> =
             alt::<Parser<'_, String, Maybe<String>>, _>(&string_("hi"), &string_("hello"));
-
         let prefix_no_atomic_tests: Vec<Maybe<String>> = vec![
             runParser(&prefix_no_atomic, "hello"),
             runParser(&prefix_no_atomic, "hellohi"),
@@ -302,7 +298,6 @@ where {
 
         let prefix_with_atomic: Parser<'_, String, Maybe<String>> =
             alt::<Parser<'_, String, Maybe<String>>, _>(&atomic(string_("hi")), &string_("hello"));
-
         let prefix_with_atomic_tests: Vec<Maybe<String>> = vec![
             runParser(&prefix_with_atomic, "hello"),
             runParser(&prefix_with_atomic, "hellohi"),
@@ -314,13 +309,11 @@ where {
                 &string_("hello"),
                 &char_('!'),
             );
-
         let bang_then_hello: Parser<'_, String, Maybe<String>> =
             then_keep_right::<Parser<'_, String, Maybe<String>>, _, _>(
                 &char_('!'),
                 &string_("hello"),
             );
-
         let then_tests: Vec<Maybe<String>> = vec![
             runParser(&hello_then_bang, "hello!"),
             runParser(&hello_then_bang, "hello"),
@@ -332,19 +325,15 @@ where {
         const fn to_upper(c: char) -> char {
             c.to_ascii_uppercase()
         }
-
         const fn next_char(c: char) -> char {
             (c as u8 + 1) as char
         }
-
         let fmap_left: Parser<'_, char, Maybe<char>> = fmap::<Parser<'_, char, Maybe<char>>, _, _>(
             &fmap::<Parser<'_, char, Maybe<char>>, _, _>(&digit, to_upper),
             next_char,
         );
-
         let fmap_right: Parser<'_, char, Maybe<char>> =
             fmap::<Parser<'_, char, Maybe<char>>, _, _>(&digit, |c| next_char(to_upper(c)));
-
         let fmap_tests: Vec<Maybe<char>> =
             vec![runParser(&fmap_left, "1"), runParser(&fmap_right, "1")];
         println!("{fmap_tests:?}");
@@ -352,13 +341,13 @@ where {
 }
 
 fn main() {
-    println!("===============================");
+    println!("-- List-of-results parser");
     parser_demo::run();
 
-    println!("\n===============================");
+    println!("\n-- CPS Mini-Parsec");
     miniparsec_demo::run();
 
-    println!("\n===============================");
+    println!("\n-- liftA2 on vector");
     let vec_liftA2_sum: Vec<i32> =
         liftA2::<Vec<()>, _, _, _>(&vec![1, 3, 4], &vec![2, 5, 6], |x, y| x + y);
     println!("{vec_liftA2_sum:?}");
