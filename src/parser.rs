@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 pub struct Parser<'a, A>(pub Arc<dyn Fn(&'a str) -> Vec<(A, &'a str)> + 'a>);
 
-impl<'a, A> Clone for Parser<'a, A> {
+impl<A> Clone for Parser<'_, A> {
     fn clone(&self) -> Self {
         Parser(self.0.clone())
     }
@@ -13,17 +13,17 @@ pub fn parse<'a, A>(p: &Parser<'a, A>, input: &'a str) -> Vec<(A, &'a str)> {
     (p.0)(input)
 }
 
-impl<'a, A: 'a> Functor<'a> for Parser<'a, A> {
+impl<'a, T: 'a> Functor<'a> for Parser<'a, T> {
     type Wrapped<B>
         = Parser<'a, B>
     where
         B: 'a;
 
-    fn fmap<X, B, F>(fa: &Self::Wrapped<X>, f: F) -> Self::Wrapped<B>
+    fn fmap<A, B, F>(fa: &Self::Wrapped<A>, f: F) -> Self::Wrapped<B>
     where
+        A: 'a,
         B: 'a,
-        X: 'a,
-        F: Fn(X) -> B + 'a,
+        F: Fn(A) -> B + 'a,
     {
         let Parser(p) = fa.clone();
         Parser(Arc::new(move |input: &'a str| {
@@ -32,20 +32,20 @@ impl<'a, A: 'a> Functor<'a> for Parser<'a, A> {
     }
 }
 
-impl<'a, A: 'a> Applicative<'a> for Parser<'a, A> {
-    fn pure<B>(a: &B) -> Self::Wrapped<B>
+impl<'a, T: 'a> Applicative<'a> for Parser<'a, T> {
+    fn pure<B>(b: &B) -> Self::Wrapped<B>
     where
         B: Clone + 'a,
     {
-        let b = a.clone();
+        let b = b.clone();
         Parser(Arc::new(move |input: &'a str| vec![(b.clone(), input)]))
     }
 
-    fn ap<X, B, FFn>(fa: &Self::Wrapped<X>, fab: Self::Wrapped<FFn>) -> Self::Wrapped<B>
+    fn ap<A, B, F>(fa: &Self::Wrapped<A>, fab: Self::Wrapped<F>) -> Self::Wrapped<B>
     where
+        A: Clone + 'a,
         B: 'a,
-        X: Clone + 'a,
-        FFn: Fn(X) -> B + 'a,
+        F: Fn(A) -> B + 'a,
     {
         let Parser(p_val) = fa.clone();
         let Parser(p_fun) = fab;
@@ -61,7 +61,7 @@ impl<'a, A: 'a> Applicative<'a> for Parser<'a, A> {
     }
 }
 
-impl<'a, A: 'a> Alternative<'a> for Parser<'a, A> {
+impl<'a, T: 'a> Alternative<'a> for Parser<'a, T> {
     fn empty<B>() -> Self::Wrapped<B>
     where
         B: 'a,
