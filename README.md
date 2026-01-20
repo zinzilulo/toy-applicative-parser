@@ -81,6 +81,6 @@ Expected output:
 [3, 6, 7, 5, 8, 9, 6, 9, 10]
 ```
 
-**Credit:** [Jamie Willis](https://github.com/j-mie6) for his wonderful lectures.
+**Credit:** [Yoda](https://github.com/zenzike/yoda) by Nicolas Wu for inspiration and [Jamie Willis](https://github.com/j-mie6) for his wonderful lectures.
 
 **License:** Apache License, Version 2.0
