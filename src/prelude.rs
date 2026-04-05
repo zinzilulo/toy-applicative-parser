@@ -14,10 +14,10 @@ pub use crate::prelude::applicative::Applicative;
 pub use crate::prelude::applicative::{
     liftA2, pure, sequenceA, then_keep_left, then_keep_right, traverse,
 };
-pub use crate::prelude::function::{id, Function};
-pub use crate::prelude::functor::fmap;
+pub use crate::prelude::function::{Function, id};
 pub use crate::prelude::functor::Functor;
-pub use crate::prelude::maybe::{catMaybes, Just, Maybe, Nothing};
+pub use crate::prelude::functor::fmap;
+pub use crate::prelude::maybe::{Just, Maybe, Nothing, catMaybes};
 pub use crate::prelude::monad::Monad;
 pub use crate::prelude::monad::{bind, join};
 
