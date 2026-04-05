@@ -6,7 +6,7 @@ impl<'a, T> Functor<'a> for Vec<T> {
     where
         U: 'a;
 
-    fn fmap<A, B, F>(fa: &Vec<A>, f: F) -> Vec<B>
+    fn fmap<A, B, F>(fa: Vec<A>, f: F) -> Vec<B>
     where
         A: Clone,
         F: Fn(A) -> B + 'a,
@@ -16,14 +16,14 @@ impl<'a, T> Functor<'a> for Vec<T> {
 }
 
 impl<'a, T> Applicative<'a> for Vec<T> {
-    fn pure<A>(a: &A) -> Vec<A>
+    fn pure<A>(a: A) -> Vec<A>
     where
         A: Clone + 'a,
     {
         vec![a.clone()]
     }
 
-    fn ap<X, B, FFn>(fa: &Vec<X>, fab: Vec<FFn>) -> Vec<B>
+    fn ap<X, B, FFn>(fa: Vec<X>, fab: Vec<FFn>) -> Vec<B>
     where
         X: Clone + 'a,
         FFn: Fn(X) -> B + 'a,
@@ -39,7 +39,7 @@ impl<'a, T> Applicative<'a> for Vec<T> {
 }
 
 impl<'a, T> Monad<'a> for Vec<T> {
-    fn bind<A, B, K>(ma: &Vec<A>, k: K) -> Vec<B>
+    fn bind<A, B, K>(ma: Vec<A>, k: K) -> Vec<B>
     where
         A: Clone + 'a,
         K: Fn(A) -> Vec<B> + 'a,
@@ -58,7 +58,7 @@ impl<'a, T, const N: usize> Functor<'a> for [T; N] {
     where
         U: 'a;
 
-    fn fmap<A, B, F>(fa: &[A; N], f: F) -> [B; N]
+    fn fmap<A, B, F>(fa: [A; N], f: F) -> [B; N]
     where
         A: Clone,
         F: Fn(A) -> B + 'a,
@@ -68,14 +68,14 @@ impl<'a, T, const N: usize> Functor<'a> for [T; N] {
 }
 
 impl<'a, T, const N: usize> Applicative<'a> for [T; N] {
-    fn pure<A>(a: &A) -> [A; N]
+    fn pure<A>(a: A) -> [A; N]
     where
         A: Clone + 'a,
     {
         std::array::from_fn(|_| a.clone())
     }
 
-    fn ap<X, B, FFn>(fa: &[X; N], fab: [FFn; N]) -> [B; N]
+    fn ap<X, B, FFn>(fa: [X; N], fab: [FFn; N]) -> [B; N]
     where
         X: Clone + 'a,
         FFn: Fn(X) -> B + 'a,
@@ -85,7 +85,7 @@ impl<'a, T, const N: usize> Applicative<'a> for [T; N] {
 }
 
 impl<'a, T> Monad<'a> for [T; 1] {
-    fn bind<A, B, K>(ma: &[A; 1], k: K) -> [B; 1]
+    fn bind<A, B, K>(ma: [A; 1], k: K) -> [B; 1]
     where
         A: Clone + 'a,
         K: Fn(A) -> [B; 1] + 'a,

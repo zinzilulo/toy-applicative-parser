@@ -9,7 +9,7 @@ impl<A> Clone for Parser<'_, A> {
     }
 }
 
-pub fn parse<'a, A>(p: &Parser<'a, A>, input: &'a str) -> Vec<(A, &'a str)> {
+pub fn parse<'a, A>(p: Parser<'a, A>, input: &'a str) -> Vec<(A, &'a str)> {
     (p.0)(input)
 }
 
@@ -19,7 +19,7 @@ impl<'a, T: 'a> Functor<'a> for Parser<'a, T> {
     where
         X: 'a;
 
-    fn fmap<A, B, F>(fa: &Self::Wrapped<A>, f: F) -> Self::Wrapped<B>
+    fn fmap<A, B, F>(fa: Self::Wrapped<A>, f: F) -> Self::Wrapped<B>
     where
         A: 'a,
         B: 'a,
@@ -33,7 +33,7 @@ impl<'a, T: 'a> Functor<'a> for Parser<'a, T> {
 }
 
 impl<'a, T: 'a> Applicative<'a> for Parser<'a, T> {
-    fn pure<B>(b: &B) -> Self::Wrapped<B>
+    fn pure<B>(b: B) -> Self::Wrapped<B>
     where
         B: Clone + 'a,
     {
@@ -41,7 +41,7 @@ impl<'a, T: 'a> Applicative<'a> for Parser<'a, T> {
         Parser(Arc::new(move |input: &'a str| vec![(b.clone(), input)]))
     }
 
-    fn ap<A, B, F>(fa: &Self::Wrapped<A>, fab: Self::Wrapped<F>) -> Self::Wrapped<B>
+    fn ap<A, B, F>(fa: Self::Wrapped<A>, fab: Self::Wrapped<F>) -> Self::Wrapped<B>
     where
         A: Clone + 'a,
         B: 'a,
@@ -69,7 +69,7 @@ impl<'a, T: 'a> Alternative<'a> for Parser<'a, T> {
         Parser(Arc::new(|_| vec![]))
     }
 
-    fn alt<B>(fa: &Self::Wrapped<B>, fb: &Self::Wrapped<B>) -> Self::Wrapped<B>
+    fn alt<B>(fa: Self::Wrapped<B>, fb: Self::Wrapped<B>) -> Self::Wrapped<B>
     where
         B: 'a,
     {
@@ -86,7 +86,7 @@ impl<'a, T: 'a> Alternative<'a> for Parser<'a, T> {
         }))
     }
 
-    fn many<B>(p: &Self::Wrapped<B>) -> Self::Wrapped<Vec<B>>
+    fn many<B>(p: Self::Wrapped<B>) -> Self::Wrapped<Vec<B>>
     where
         Self: Sized,
         B: 'a + Clone,
@@ -118,6 +118,6 @@ pub trait IntoPure<'a>: Sized {
 impl<'a, T: 'a + Clone> IntoPure<'a> for T {
     #[inline]
     fn into_pure(self) -> Parser<'a, Self> {
-        <Parser<'a, Self> as Applicative<'a>>::pure(&self)
+        <Parser<'a, Self> as Applicative<'a>>::pure(self)
     }
 }

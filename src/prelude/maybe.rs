@@ -10,13 +10,13 @@ where
     iter.into_iter().flatten().collect()
 }
 
-impl<'a, T0> Functor<'a> for Option<T0> {
+impl<'a, T0> Functor<'a> for Maybe<T0> {
     type Wrapped<T>
-        = Option<T>
+        = Maybe<T>
     where
         T: 'a;
 
-    fn fmap<A, B, F>(fa: &Option<A>, f: F) -> Option<B>
+    fn fmap<A, B, F>(fa: Maybe<A>, f: F) -> Maybe<B>
     where
         A: Clone,
         F: Fn(A) -> B + 'a,
@@ -26,14 +26,14 @@ impl<'a, T0> Functor<'a> for Option<T0> {
 }
 
 impl<'a, T> Applicative<'a> for Maybe<T> {
-    fn pure<A>(a: &A) -> Self::Wrapped<A>
+    fn pure<A>(a: A) -> Self::Wrapped<A>
     where
         A: 'a + Clone,
     {
         Just(a.clone())
     }
 
-    fn ap<X, B, FFn>(fa: &Self::Wrapped<X>, fab: Self::Wrapped<FFn>) -> Self::Wrapped<B>
+    fn ap<X, B, FFn>(fa: Self::Wrapped<X>, fab: Self::Wrapped<FFn>) -> Self::Wrapped<B>
     where
         B: 'a,
         X: Clone + 'a,
@@ -47,7 +47,7 @@ impl<'a, T> Applicative<'a> for Maybe<T> {
 }
 
 impl<'a, T> Monad<'a> for Maybe<T> {
-    fn bind<A, B, K>(ma: &Self::Wrapped<A>, k: K) -> Self::Wrapped<B>
+    fn bind<A, B, K>(ma: Self::Wrapped<A>, k: K) -> Self::Wrapped<B>
     where
         A: 'a + Clone,
         B: 'a,

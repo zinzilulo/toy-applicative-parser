@@ -6,10 +6,10 @@ mod miniparsec;
 mod parser;
 
 mod parser_demo {
-    use crate::parser::{parse, IntoPure, Parser};
+    use crate::parser::{IntoPure, Parser, parse};
     use crate::prelude::{
-        alt, catMaybes, fmap, liftA2, many, then_keep_left, then_keep_right, Alternative,
-        Applicative, Just, Maybe, Nothing,
+        Alternative, Applicative, Just, Maybe, Nothing, alt, catMaybes, fmap, liftA2, many,
+        then_keep_left, then_keep_right,
     };
     use std::sync::Arc;
 
@@ -28,14 +28,14 @@ mod parser_demo {
         F: Fn() -> Parser<'a, A> + 'a,
         A: 'a,
     {
-        Parser(Arc::new(move |s: &'a str| parse(&mk(), s)))
+        Parser(Arc::new(move |s: &'a str| parse(mk(), s)))
     }
 
     fn satisfy<'a, F>(f: F) -> Parser<'a, char>
     where
-        F: Fn(char) -> bool + 'a,
+        F: Fn(char) -> bool + Clone + 'a,
     {
-        fn eat<'a, F>(s: &'a str, f: &F) -> Vec<(char, &'a str)>
+        fn eat<F>(s: &str, f: F) -> Vec<(char, &str)>
         where
             F: Fn(char) -> bool,
         {
@@ -48,7 +48,7 @@ mod parser_demo {
             vec![]
         }
 
-        Parser(Arc::new(move |s: &'a str| eat(s, &f)))
+        Parser(Arc::new(move |s: &'a str| eat(s, f.clone())))
     }
 
     fn char_<'a>(c: char) -> Parser<'a, char> {
@@ -70,7 +70,7 @@ mod parser_demo {
             let head: Parser<'a, char> = char_(c);
             let tail: Parser<'a, String> = string_(cs.to_string());
 
-            let out: Parser<'a, String> = <Parser<'a, char>>::liftA2(&head, &tail, |h, t| {
+            let out: Parser<'a, String> = <Parser<'a, char>>::liftA2(head, tail, |h, t| {
                 let mut s = String::with_capacity(1 + t.len());
                 s.push(h);
                 s.push_str(&t);
@@ -80,7 +80,7 @@ mod parser_demo {
         }
     }
 
-    fn parse_fully<'a, A: Clone>(p: &Parser<'a, A>, s: &'a str) -> Vec<A> {
+    fn parse_fully<'a, A: Clone>(p: Parser<'a, A>, s: &'a str) -> Vec<A> {
         parse(p, s)
             .into_iter()
             .filter_map(|(x, rest)| if rest.is_empty() { Just(x) } else { Nothing })
@@ -91,90 +91,95 @@ mod parser_demo {
         let oneOf = |cs: String| satisfy(move |c| cs.contains(c));
         let noneOf = |cs: String| satisfy(move |c| !cs.contains(c));
 
-        let inner_b: Parser<'a, Command> = fmap::<Parser<'a, ()>, _, _>(&lazy(cmds), Command::B);
+        let inner_b: Parser<'a, Command> = fmap::<Parser<'a, ()>, _, _>(lazy(cmds), Command::B);
 
         let f: Parser<'a, Maybe<Command>> = then_keep_left::<Parser<'a, ()>, _, _>(
-            &(Just(Command::F).into_pure()),
-            &oneOf("MN".to_string()),
+            Just(Command::F).into_pure(),
+            oneOf("MN".to_string()),
         );
 
         let l: Parser<'a, Maybe<Command>> =
-            then_keep_left::<Parser<'a, ()>, _, _>(&(Just(Command::L).into_pure()), &char_('+'));
+            then_keep_left::<Parser<'a, ()>, _, _>(Just(Command::L).into_pure(), char_('+'));
 
         let r: Parser<'a, Maybe<Command>> =
-            then_keep_left::<Parser<'a, ()>, _, _>(&(Just(Command::R).into_pure()), &char_('-'));
+            then_keep_left::<Parser<'a, ()>, _, _>(Just(Command::R).into_pure(), char_('-'));
 
         let b_head: Parser<'a, Command> = <Parser<'a, char>>::then_keep_left(
-            &then_keep_right::<Parser<'a, ()>, _, _>(&char_('['), &inner_b),
-            &char_(']'),
+            then_keep_right::<Parser<'a, ()>, _, _>(char_('['), inner_b),
+            char_(']'),
         );
 
-        let b: Parser<'a, Maybe<Command>> = fmap::<Parser<'a, ()>, _, _>(&b_head, Just);
+        let b: Parser<'a, Maybe<Command>> = fmap::<Parser<'a, ()>, _, _>(b_head, Just);
 
         let n: Parser<'a, Maybe<Command>> =
-            fmap::<Parser<'a, ()>, _, _>(&noneOf("MN+-[]".to_string()), |_| Nothing::<Command>);
+            fmap::<Parser<'a, ()>, _, _>(noneOf("MN+-[]".to_string()), |_| Nothing::<Command>);
 
         <Parser<'a, Maybe<Command>>>::alt(
-            &alt::<Parser<'a, ()>, _>(&<Parser<'a, Maybe<Command>>>::alt(&f, &l), &r),
-            &alt::<Parser<'a, ()>, _>(&b, &n),
+            alt::<Parser<'a, ()>, _>(<Parser<'a, Maybe<Command>>>::alt(f, l), r),
+            alt::<Parser<'a, ()>, _>(b, n),
         )
     }
 
     fn cmds<'a>() -> Parser<'a, Vec<Command>> {
-        fmap::<P<'a>, _, _>(&many::<Parser<'a, ()>, _>(&cmd()), catMaybes)
+        fmap::<P<'a>, _, _>(many::<Parser<'a, ()>, _>(cmd()), catMaybes)
     }
 
     pub fn run() {
         let item: Parser<'_, char> = satisfy(|_| true);
 
         let digit: Parser<'_, char> = satisfy(|c| c.is_ascii_digit());
-        let digit_tests: Vec<Vec<(char, &str)>> =
-            vec![parse(&digit, "a"), parse(&digit, "0"), parse(&digit, "23")];
+        let digit_tests: Vec<Vec<(char, &str)>> = vec![
+            parse(digit.clone(), "a"),
+            parse(digit.clone(), "0"),
+            parse(digit.clone(), "23"),
+        ];
         println!("{digit_tests:?}");
 
-        let item_tests: Vec<Vec<(char, &str)>> = vec![parse(&item, ""), parse(&item, "a1")];
+        let item_tests: Vec<Vec<(char, &str)>> =
+            vec![parse(item.clone(), ""), parse(item.clone(), "a1")];
         println!("{item_tests:?}");
 
         let multi_digit: Parser<'_, (char, char)> =
-            liftA2::<P<'_>, _, _, _>(&digit, &digit, |x, y| (x, y));
-        let pair_of_digits: Vec<((char, char), &str)> = parse(&multi_digit, "423");
+            liftA2::<P<'_>, _, _, _>(digit.clone(), digit.clone(), |x, y| (x, y));
+        let pair_of_digits: Vec<((char, char), &str)> = parse(multi_digit, "423");
         println!("{pair_of_digits:?}");
 
         let string_bang: Parser<'_, String> =
-            then_keep_left::<P<'_>, _, _>(&string_("hello"), &char_('!'));
+            then_keep_left::<P<'_>, _, _>(string_("hello"), char_('!'));
         let string_tests: Vec<Vec<(String, &str)>> = vec![
-            parse(&string_("hello"), "hello world"),
-            parse(&string_bang, "hello!"),
+            parse(string_("hello"), "hello world"),
+            parse(string_bang, "hello!"),
         ];
         println!("{string_tests:?}");
 
         let many_digit_values: Vec<(Vec<u32>, &str)> = parse(
-            &many::<P<'_>, _>(&fmap::<Parser<'_, ()>, _, _>(&digit, |c: char| -> u32 {
-                c.to_digit(10).unwrap()
-            })),
+            many::<P<'_>, _>(fmap::<Parser<'_, ()>, _, _>(
+                digit.clone(),
+                |c: char| -> u32 { c.to_digit(10).unwrap() },
+            )),
             "12a",
         );
         println!("{many_digit_values:?}");
 
         let to_ord = |c: char| c as u32;
         let ord_item_tests: Vec<Vec<(u32, &str)>> = vec![
-            parse(&fmap::<P<'_>, _, _>(&item, to_ord), "a"),
-            parse(&fmap::<P<'_>, _, _>(&digit, to_ord), "1"),
+            parse(fmap::<P<'_>, _, _>(item.clone(), to_ord), "a"),
+            parse(fmap::<P<'_>, _, _>(digit.clone(), to_ord), "1"),
         ];
         println!("{ord_item_tests:?}");
 
-        let full_only: Vec<Vec<char>> = parse_fully(&many::<P<'_>, _>(&digit), "12a");
+        let full_only: Vec<Vec<char>> = parse_fully(many::<P<'_>, _>(digit), "12a");
         println!("{full_only:?}");
 
-        let command_parse: Vec<(Vec<Command>, &str)> = parse(&cmds(), "M+X[-N]+[]");
-        let first_result_commands: &Vec<Command> = &(command_parse.first().unwrap()).0;
+        let command_parse: Vec<(Vec<Command>, &str)> = parse(cmds(), "M+X[-N]+[]");
+        let first_result_commands: Vec<Command> = command_parse.first().unwrap().0.clone();
         println!("{first_result_commands:?}");
     }
 }
 
 mod miniparsec_demo {
-    use crate::miniparsec::{runParser, IntoPure, Parser};
-    use crate::prelude::{alt, fmap, then_keep_left, then_keep_right, Applicative, Maybe};
+    use crate::miniparsec::{IntoPure, Parser, runParser};
+    use crate::prelude::{Applicative, Maybe, alt, fmap, then_keep_left, then_keep_right};
     use std::sync::Arc;
 
     fn satisfy<'a, F, R: Clone>(pf: F) -> Parser<'a, char, R>
@@ -218,7 +223,7 @@ mod miniparsec_demo {
             let tail: Parser<'a, String, Maybe<String>> = string_(cs.to_string());
 
             let out: Parser<'a, String, Maybe<String>> =
-                <Parser<'a, char, Maybe<String>>>::liftA2(&head, &tail, |h, t| {
+                <Parser<'a, char, Maybe<String>>>::liftA2(head, tail, |h, t| {
                     let mut s = String::with_capacity(1 + t.len());
                     s.push(h);
                     s.push_str(&t);
@@ -242,35 +247,38 @@ where {
 
     pub fn run() {
         let item: Parser<'_, char, Maybe<char>> = satisfy(|_| true);
-        let item_tests: Vec<Maybe<char>> = vec![runParser(&item, ""), runParser(&item, "a1")];
+        let item_tests: Vec<Maybe<char>> =
+            vec![runParser(item.clone(), ""), runParser(item.clone(), "a1")];
         println!("{item_tests:?}");
 
         let digit: Parser<'_, char, Maybe<char>> = satisfy(|c| c.is_ascii_digit());
         let digit_tests: Vec<Maybe<char>> = vec![
-            runParser(&digit, "a"),
-            runParser(&digit, "0"),
-            runParser(&digit, "23"),
+            runParser(digit.clone(), "a"),
+            runParser(digit.clone(), "0"),
+            runParser(digit.clone(), "23"),
         ];
         println!("{digit_tests:?}");
 
         let non_atomic: Parser<'_, String, Maybe<String>> =
-            alt::<Parser<'_, String, Maybe<String>>, _>(&string_("hi"), &string_("hello"));
+            alt::<Parser<'_, String, Maybe<String>>, _>(string_("hi"), string_("hello"));
         let non_atomic_tests = vec![
-            runParser(&non_atomic, "hihello"),
-            runParser(&non_atomic, "hellohi"),
+            runParser(non_atomic.clone(), "hihello"),
+            runParser(non_atomic.clone(), "hellohi"),
         ];
         println!("{non_atomic_tests:?}");
 
         let full: Parser<'_, String, Maybe<String>> =
-            alt::<Parser<'_, String, Maybe<String>>, _>(&atomic(string_("hi")), &string_("hello"));
-        let full_tests: Vec<Maybe<String>> =
-            vec![runParser(&full, "hihello"), runParser(&full, "hellohi")];
+            alt::<Parser<'_, String, Maybe<String>>, _>(atomic(string_("hi")), string_("hello"));
+        let full_tests: Vec<Maybe<String>> = vec![
+            runParser(full.clone(), "hihello"),
+            runParser(full.clone(), "hellohi"),
+        ];
         println!("{full_tests:?}");
 
         let empty_string = string_("");
         let tests = vec![
-            runParser(&empty_string, ""),
-            runParser(&empty_string, "abc"),
+            runParser(empty_string.clone(), ""),
+            runParser(empty_string.clone(), "abc"),
         ];
         println!("{tests:?}");
 
@@ -280,45 +288,42 @@ where {
         let char_a: Parser<'_, char, Maybe<char>> = char_item('a');
         let char_b: Parser<'_, char, Maybe<char>> = char_item('b');
         let char_alt: Parser<'_, char, Maybe<char>> =
-            alt::<Parser<'_, char, Maybe<char>>, _>(&char_a, &char_b);
+            alt::<Parser<'_, char, Maybe<char>>, _>(char_a, char_b);
         let char_alt_tests: Vec<Maybe<char>> = vec![
-            runParser(&char_alt, "b"),
-            runParser(&char_alt, "a"),
-            runParser(&char_alt, "c"),
+            runParser(char_alt.clone(), "b"),
+            runParser(char_alt.clone(), "a"),
+            runParser(char_alt.clone(), "c"),
         ];
         println!("{char_alt_tests:?}");
 
         let prefix_no_atomic: Parser<'_, String, Maybe<String>> =
-            alt::<Parser<'_, String, Maybe<String>>, _>(&string_("hi"), &string_("hello"));
+            alt::<Parser<'_, String, Maybe<String>>, _>(string_("hi"), string_("hello"));
         let prefix_no_atomic_tests: Vec<Maybe<String>> = vec![
-            runParser(&prefix_no_atomic, "hello"),
-            runParser(&prefix_no_atomic, "hellohi"),
+            runParser(prefix_no_atomic.clone(), "hello"),
+            runParser(prefix_no_atomic.clone(), "hellohi"),
         ];
         println!("{prefix_no_atomic_tests:?}");
 
         let prefix_with_atomic: Parser<'_, String, Maybe<String>> =
-            alt::<Parser<'_, String, Maybe<String>>, _>(&atomic(string_("hi")), &string_("hello"));
+            alt::<Parser<'_, String, Maybe<String>>, _>(atomic(string_("hi")), string_("hello"));
         let prefix_with_atomic_tests: Vec<Maybe<String>> = vec![
-            runParser(&prefix_with_atomic, "hello"),
-            runParser(&prefix_with_atomic, "hellohi"),
+            runParser(prefix_with_atomic.clone(), "hello"),
+            runParser(prefix_with_atomic.clone(), "hellohi"),
         ];
         println!("{prefix_with_atomic_tests:?}");
 
         let hello_then_bang: Parser<'_, String, Maybe<String>> =
-            then_keep_left::<Parser<'_, String, Maybe<String>>, _, _>(
-                &string_("hello"),
-                &char_('!'),
-            );
+            then_keep_left::<Parser<'_, String, Maybe<String>>, _, _>(string_("hello"), char_('!'));
         let bang_then_hello: Parser<'_, String, Maybe<String>> =
             then_keep_right::<Parser<'_, String, Maybe<String>>, _, _>(
-                &char_('!'),
-                &string_("hello"),
+                char_('!'),
+                string_("hello"),
             );
         let then_tests: Vec<Maybe<String>> = vec![
-            runParser(&hello_then_bang, "hello!"),
-            runParser(&hello_then_bang, "hello"),
-            runParser(&bang_then_hello, "!hello"),
-            runParser(&bang_then_hello, "hello!"),
+            runParser(hello_then_bang.clone(), "hello!"),
+            runParser(hello_then_bang.clone(), "hello"),
+            runParser(bang_then_hello.clone(), "!hello"),
+            runParser(bang_then_hello.clone(), "hello!"),
         ];
         println!("{then_tests:?}");
 
@@ -329,13 +334,15 @@ where {
             (c as u8 + 1) as char
         }
         let fmap_left: Parser<'_, char, Maybe<char>> = fmap::<Parser<'_, char, Maybe<char>>, _, _>(
-            &fmap::<Parser<'_, char, Maybe<char>>, _, _>(&digit, to_upper),
+            fmap::<Parser<'_, char, Maybe<char>>, _, _>(digit.clone(), to_upper),
             next_char,
         );
         let fmap_right: Parser<'_, char, Maybe<char>> =
-            fmap::<Parser<'_, char, Maybe<char>>, _, _>(&digit, |c| next_char(to_upper(c)));
-        let fmap_tests: Vec<Maybe<char>> =
-            vec![runParser(&fmap_left, "1"), runParser(&fmap_right, "1")];
+            fmap::<Parser<'_, char, Maybe<char>>, _, _>(digit.clone(), |c| next_char(to_upper(c)));
+        let fmap_tests: Vec<Maybe<char>> = vec![
+            runParser(fmap_left.clone(), "1"),
+            runParser(fmap_right.clone(), "1"),
+        ];
         println!("{fmap_tests:?}");
     }
 }
@@ -349,6 +356,6 @@ fn main() {
 
     println!("\n-- liftA2 on vector");
     let vec_liftA2_sum: Vec<i32> =
-        liftA2::<Vec<()>, _, _, _>(&vec![1, 3, 4], &vec![2, 5, 6], |x, y| x + y);
+        liftA2::<Vec<()>, _, _, _>(vec![1, 3, 4], vec![2, 5, 6], |x, y| x + y);
     println!("{vec_liftA2_sum:?}");
 }

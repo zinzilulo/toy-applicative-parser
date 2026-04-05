@@ -20,7 +20,7 @@ impl<A, R> Clone for Parser<'_, A, R> {
     }
 }
 
-pub fn runParser<'a, A>(p: &Parser<'a, A, Maybe<A>>, inp: &'a str) -> Maybe<A>
+pub fn runParser<'a, A>(p: Parser<'a, A, Maybe<A>>, inp: &'a str) -> Maybe<A>
 where
     A: 'a + Clone,
 {
@@ -39,7 +39,7 @@ impl<'a, T: 'a, R: 'a> Functor<'a> for Parser<'a, T, R> {
     where
         X: 'a;
 
-    fn fmap<A, B, F>(fa: &Self::Wrapped<A>, f: F) -> Self::Wrapped<B>
+    fn fmap<A, B, F>(fa: Self::Wrapped<A>, f: F) -> Self::Wrapped<B>
     where
         A: 'a,
         B: 'a,
@@ -74,7 +74,7 @@ impl<'a, T: 'a, R: 'a> Functor<'a> for Parser<'a, T, R> {
 }
 
 impl<'a, T: 'a, R: 'a> Applicative<'a> for Parser<'a, T, R> {
-    fn pure<B>(b: &B) -> Self::Wrapped<B>
+    fn pure<B>(b: B) -> Self::Wrapped<B>
     where
         B: Clone + 'a,
     {
@@ -89,7 +89,7 @@ impl<'a, T: 'a, R: 'a> Applicative<'a> for Parser<'a, T, R> {
         }))
     }
 
-    fn ap<A, B, F>(fa: &Self::Wrapped<A>, fab: Self::Wrapped<F>) -> Self::Wrapped<B>
+    fn ap<A, B, F>(fa: Self::Wrapped<A>, fab: Self::Wrapped<F>) -> Self::Wrapped<B>
     where
         A: Clone + 'a,
         B: 'a,
@@ -117,7 +117,7 @@ impl<'a, T: 'a, R: 'a> Applicative<'a> for Parser<'a, T, R> {
                             let cok = cok.clone();
                             let eok = eok.clone();
                             let cerr = cerr.clone();
-                            let Parser(p_val) = Self::fmap(&fa, f);
+                            let Parser(p_val) = Self::fmap(fa, f);
                             p_val(
                                 rest,
                                 cok,
@@ -139,7 +139,7 @@ impl<'a, T: 'a, R: 'a> Applicative<'a> for Parser<'a, T, R> {
                             let eok = eok.clone();
                             let cerr = cerr.clone();
                             let eerr = eerr.clone();
-                            let Parser(p_val) = Self::fmap(&fa, f);
+                            let Parser(p_val) = Self::fmap(fa, f);
                             p_val(inp, cok, eok, cerr, eerr)
                         }
                     }),
@@ -166,7 +166,7 @@ impl<'a, T: 'a, R: 'a> Alternative<'a> for Parser<'a, T, R> {
         }))
     }
 
-    fn alt<B>(fa: &Self::Wrapped<B>, fb: &Self::Wrapped<B>) -> Self::Wrapped<B>
+    fn alt<B>(fa: Self::Wrapped<B>, fb: Self::Wrapped<B>) -> Self::Wrapped<B>
     where
         B: 'a,
     {
@@ -200,6 +200,6 @@ pub trait IntoPure<'a, R>: Sized {
 impl<'a, A: 'a + Clone, R: 'a + Clone> IntoPure<'a, R> for A {
     #[inline]
     fn into_pure(self) -> Parser<'a, Self, R> {
-        <Parser<'a, Self, R> as Applicative<'a>>::pure(&self)
+        <Parser<'a, Self, R> as Applicative<'a>>::pure(self)
     }
 }

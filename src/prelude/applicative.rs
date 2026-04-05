@@ -2,16 +2,16 @@ use crate::prelude::functor::Functor;
 use std::sync::Arc;
 
 pub trait Applicative<'a>: Functor<'a> {
-    fn pure<A>(a: &A) -> Self::Wrapped<A>
+    fn pure<A>(a: A) -> Self::Wrapped<A>
     where
         A: Clone + 'a;
 
-    fn ap<X, B, FFn>(fa: &Self::Wrapped<X>, fab: Self::Wrapped<FFn>) -> Self::Wrapped<B>
+    fn ap<X, B, FFn>(fa: Self::Wrapped<X>, fab: Self::Wrapped<FFn>) -> Self::Wrapped<B>
     where
         X: Clone + 'a,
         FFn: Fn(X) -> B + 'a;
 
-    fn liftA2<X, Y, C, F2>(fa: &Self::Wrapped<X>, fb: &Self::Wrapped<Y>, f: F2) -> Self::Wrapped<C>
+    fn liftA2<X, Y, C, F2>(fa: Self::Wrapped<X>, fb: Self::Wrapped<Y>, f: F2) -> Self::Wrapped<C>
     where
         Self: Sized,
         X: Clone + 'a,
@@ -29,7 +29,7 @@ pub trait Applicative<'a>: Functor<'a> {
         Self::ap::<Y, C, _>(fb, ff)
     }
 
-    fn then_keep_right<X, Y>(fa: &Self::Wrapped<X>, fb: &Self::Wrapped<Y>) -> Self::Wrapped<Y>
+    fn then_keep_right<X, Y>(fa: Self::Wrapped<X>, fb: Self::Wrapped<Y>) -> Self::Wrapped<Y>
     where
         Self: Sized,
         X: Clone + 'a,
@@ -38,7 +38,7 @@ pub trait Applicative<'a>: Functor<'a> {
         Self::liftA2(fa, fb, |_, y| y)
     }
 
-    fn then_keep_left<X, Y>(fa: &Self::Wrapped<X>, fb: &Self::Wrapped<Y>) -> Self::Wrapped<X>
+    fn then_keep_left<X, Y>(fa: Self::Wrapped<X>, fb: Self::Wrapped<Y>) -> Self::Wrapped<X>
     where
         Self: Sized,
         X: Clone + 'a,
@@ -54,8 +54,8 @@ pub trait Applicative<'a>: Functor<'a> {
     {
         fa.into_iter()
             .rev()
-            .fold(Self::pure(&Vec::new()), |acc, fx| {
-                Self::liftA2(&fx, &acc, |a, mut bs| {
+            .fold(Self::pure(Vec::new()), |acc, fx| {
+                Self::liftA2(fx, acc, |a, mut bs| {
                     bs.insert(0, a);
                     bs
                 })
@@ -78,12 +78,12 @@ where
     C: Applicative<'a>,
     A: 'a + Clone,
 {
-    C::pure::<A>(&x)
+    C::pure::<A>(x)
 }
 
 pub fn liftA2<'a, C, A, B, Z>(
-    pa: &C::Wrapped<A>,
-    pb: &C::Wrapped<B>,
+    pa: C::Wrapped<A>,
+    pb: C::Wrapped<B>,
     f: impl Fn(A, B) -> Z + 'a,
 ) -> C::Wrapped<Z>
 where
@@ -94,7 +94,7 @@ where
     C::liftA2(pa, pb, f)
 }
 
-pub fn then_keep_left<'a, C, A, B>(pa: &C::Wrapped<A>, pb: &C::Wrapped<B>) -> C::Wrapped<A>
+pub fn then_keep_left<'a, C, A, B>(pa: C::Wrapped<A>, pb: C::Wrapped<B>) -> C::Wrapped<A>
 where
     A: Clone,
     B: Clone,
@@ -103,7 +103,7 @@ where
     C::then_keep_left(pa, pb)
 }
 
-pub fn then_keep_right<'a, C, A, B>(pa: &C::Wrapped<A>, pb: &C::Wrapped<B>) -> C::Wrapped<B>
+pub fn then_keep_right<'a, C, A, B>(pa: C::Wrapped<A>, pb: C::Wrapped<B>) -> C::Wrapped<B>
 where
     A: Clone,
     B: Clone,
